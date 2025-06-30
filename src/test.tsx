@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import { useRef, useState } from "react";
 
 const CameraCapture = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
