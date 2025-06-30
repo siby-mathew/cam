@@ -1,96 +1,94 @@
-import { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const CameraCapture = () => {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [capturedImage, setCapturedImage] = useState<string | null>(null);
-  const [streaming, setStreaming] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [photoURL, setPhotoURL] = useState<string | null>(null);
 
-  const startCamera = async () => {
-    setError(null);
-    setCapturedImage(null);
+  useEffect(() => {
+    const startCamera = async () => {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: "environment" }, // Use rear camera
+            width: { ideal: 4096 },
+            height: { ideal: 2160 },
+          },
+          audio: false,
+        });
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: { ideal: "environment" } },
-        audio: false,
-      });
-
-      const video = videoRef.current;
-      console.log(stream, video);
-      if (video) {
-        video.srcObject = stream;
-        video.onloadedmetadata = () => {
-          video.play();
-        };
-        setStreaming(true);
+        if (videoRef.current) {
+          videoRef.current.srcObject = stream;
+        }
+      } catch (error) {
+        console.error("Error accessing camera:", error);
+        alert("Camera access failed");
       }
-    } catch (err: any) {
-      console.error("Camera error:", err);
-      setError("Unable to access the camera. Check permissions and try again.");
-    }
-  };
+    };
 
-  const captureImage = () => {
+    startCamera();
+
+    return () => {
+      // Cleanup on unmount
+      const stream = videoRef.current?.srcObject as MediaStream;
+      stream?.getTracks().forEach((track) => track.stop());
+    };
+  }, []);
+
+  const handleCapture = () => {
+    if (!videoRef.current || !canvasRef.current) return;
+
     const video = videoRef.current;
     const canvas = canvasRef.current;
 
-    if (video && canvas) {
-      canvas.width = video.videoWidth;
-      canvas.height = video.videoHeight;
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
 
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        const image = canvas.toDataURL("image/png");
-        setCapturedImage(image);
-      }
-    }
-  };
+    const ctx = canvas.getContext("2d");
+    if (ctx) {
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-  const stopCamera = () => {
-    const video = videoRef.current;
-    if (video?.srcObject) {
-      (video.srcObject as MediaStream)
-        .getTracks()
-        .forEach((track) => track.stop());
+      canvas.toBlob(
+        (blob) => {
+          if (blob) {
+            const url = URL.createObjectURL(blob);
+            setPhotoURL(url);
+          }
+        },
+        "image/jpeg",
+        0.95
+      );
     }
-    setStreaming(false);
   };
 
   return (
-    <div style={{ textAlign: "center", padding: "1rem" }}>
-      {!streaming ? <button onClick={startCamera}>Start Camera</button> : null}
-      <>
-        <video
-          ref={videoRef}
-          style={{ width: "100%", maxWidth: "500px" }}
-          autoPlay
-          muted
-          playsInline // Required for mobile browsers
-        />
-        <br />
-        <button onClick={captureImage}>📸 Capture</button>
-        <button onClick={stopCamera} style={{ marginLeft: "1rem" }}>
-          ❌ Stop
-        </button>
-      </>
+    <div style={{ textAlign: "center" }}>
+      <video
+        ref={videoRef}
+        autoPlay
+        playsInline
+        style={{ width: "100%", maxWidth: "480px", borderRadius: "8px" }}
+      />
+      <br />
+      <button onClick={handleCapture} style={{ marginTop: "10px" }}>
+        Capture Photo
+      </button>
 
       <canvas ref={canvasRef} style={{ display: "none" }} />
 
-      {capturedImage && (
-        <div style={{ marginTop: "1rem" }}>
-          <h3>Captured Image</h3>
+      {photoURL && (
+        <div style={{ marginTop: "15px" }}>
           <img
-            src={capturedImage}
+            src={photoURL}
             alt="Captured"
-            style={{ width: "100%", maxWidth: "500px" }}
+            style={{ width: "100%", maxWidth: "480px", borderRadius: "8px" }}
           />
+          <br />
+          <a href={photoURL} download="captured.jpg">
+            Download Photo
+          </a>
         </div>
       )}
-
-      {error && <p style={{ color: "red" }}>{error}</p>}
     </div>
   );
 };
