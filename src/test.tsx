@@ -55,9 +55,7 @@ const EdgeDetectionScanner = () => {
             capture="environment"
             ref={fileInputRef}
             onChange={handleImageChange}
-            style={{ display: "none" }}
           />
-
           {imageURL && (
             <div style={{ marginTop: 20 }}>
               <img src={imageURL} alt="Captured" style={{ width: "100%" }} />
