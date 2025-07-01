@@ -1,96 +1,72 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
+import Webcam from "react-webcam";
 
-const CameraCapture = () => {
-  const videoRef = useRef<HTMLVideoElement>(null);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const [photoURL, setPhotoURL] = useState<string | null>(null);
+const videoConstraints = {
+  facingMode: "environment",
+};
 
-  useEffect(() => {
-    const startCamera = async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: "environment" }, // Use rear camera
-            width: { ideal: 4096 },
-            height: { ideal: 2160 },
-          },
-          audio: false,
-        });
+const EdgeDetectionScanner = () => {
+  const webcamRef = useRef<Webcam>(null);
+  const [images, set] = useState<string[]>([]);
 
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
-      } catch (error) {
-        console.error("Error accessing camera:", error);
-        alert("Camera access failed");
+  const captureAndDetectEdges = () => {
+    if (webcamRef.current) {
+      const imageSrc = webcamRef.current.getScreenshot();
+      if (imageSrc) {
+        set((prev) => [...prev, imageSrc]);
       }
-    };
+    }
+  };
+  const fileInputRef = useRef(null);
+  const [imageURL] = useState(null);
 
-    startCamera();
-
-    return () => {
-      // Cleanup on unmount
-      const stream = videoRef.current?.srcObject as MediaStream;
-      stream?.getTracks().forEach((track) => track.stop());
-    };
-  }, []);
-
-  const handleCapture = () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-
-    const ctx = canvas.getContext("2d");
-    if (ctx) {
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-      canvas.toBlob(
-        (blob) => {
-          if (blob) {
-            const url = URL.createObjectURL(blob);
-            setPhotoURL(url);
-          }
-        },
-        "image/jpeg",
-        0.95
-      );
+  const handleImageChange = (e: any) => {
+    const file = e.target.files[0];
+    if (file) {
+      // setImageURL(URL.createObjectURL(file));
     }
   };
 
+  const openCamera = () => {
+    // fileInputRef.current.click();
+  };
   return (
-    <div style={{ textAlign: "center" }}>
-      <video
-        ref={videoRef}
-        autoPlay
-        playsInline
-        style={{ width: "100%", maxWidth: "480px", borderRadius: "8px" }}
+    <div>
+      <Webcam
+        ref={webcamRef}
+        audio={false}
+        screenshotFormat="image/jpeg"
+        videoConstraints={videoConstraints}
+        style={{ width: "100%", maxWidth: "400px" }}
+        screenshotQuality={100}
       />
-      <br />
-      <button onClick={handleCapture} style={{ marginTop: "10px" }}>
-        Capture Photo
-      </button>
+      <button onClick={captureAndDetectEdges}>Capture + Detect Edges</button>
+      {images.map((item) => {
+        return <img src={item} />;
+      })}
 
-      <canvas ref={canvasRef} style={{ display: "none" }} />
+      <div>
+        <div>
+          <button onClick={openCamera}>Open Camera</button>
 
-      {photoURL && (
-        <div style={{ marginTop: "15px" }}>
-          <img
-            src={photoURL}
-            alt="Captured"
-            style={{ width: "100%", maxWidth: "480px", borderRadius: "8px" }}
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            ref={fileInputRef}
+            onChange={handleImageChange}
+            style={{ display: "none" }}
           />
-          <br />
-          <a href={photoURL} download="captured.jpg">
-            Download Photo
-          </a>
+
+          {imageURL && (
+            <div style={{ marginTop: 20 }}>
+              <img src={imageURL} alt="Captured" style={{ width: "100%" }} />
+            </div>
+          )}
         </div>
-      )}
+      </div>
     </div>
   );
 };
 
-export default CameraCapture;
+export default EdgeDetectionScanner;
