@@ -4,6 +4,9 @@ export const createPdfFromBase64Images = async (
 ): Promise<Blob> => {
   const pdfDoc = await PDFDocument.create();
 
+  const A4_WIDTH = 595.28; // points
+  const A4_HEIGHT = 841.89; // points
+
   for (const base64 of base64Images) {
     const cleanedBase64 = base64.replace(/^data:image\/(png|jpeg);base64,/, "");
     const bytes = Uint8Array.from(atob(cleanedBase64), (c) => c.charCodeAt(0));
@@ -18,13 +21,23 @@ export const createPdfFromBase64Images = async (
       continue;
     }
 
-    const { width, height } = image.scale(1);
-    const page = pdfDoc.addPage([width, height]);
+    const { width: imgWidth, height: imgHeight } = image.scale(1);
+    const aspectRatio = imgWidth / imgHeight;
+
+    // Fit image into A4 dimensions while maintaining aspect ratio
+    let drawWidth = A4_WIDTH;
+    let drawHeight = A4_WIDTH / aspectRatio;
+    if (drawHeight > A4_HEIGHT) {
+      drawHeight = A4_HEIGHT;
+      drawWidth = A4_HEIGHT * aspectRatio;
+    }
+
+    const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
     page.drawImage(image, {
-      x: 0,
-      y: 0,
-      width,
-      height,
+      x: (A4_WIDTH - drawWidth) / 2,
+      y: (A4_HEIGHT - drawHeight) / 2,
+      width: drawWidth,
+      height: drawHeight,
     });
   }
 

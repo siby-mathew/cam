@@ -19,10 +19,15 @@ export const DocPreview: React.FC<{
   const download = async () => {
     const pdfBlob = await createPdfFromBase64Images(images);
     const url = URL.createObjectURL(pdfBlob);
+
     const link = document.createElement("a");
     link.href = url;
     link.download = "scanned-document.pdf";
+    link.style.display = "none";
+    document.body.appendChild(link);
     link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
   };
 
   return (
