@@ -1,40 +1,9 @@
-import { Box, Button, Flex, Image } from "@chakra-ui/react";
+import { Box, Button, Flex } from "@chakra-ui/react";
 import { useId, useState } from "react";
 
-import { PDFDocument } from "pdf-lib";
-
-export async function createPdfFromBase64Images(
-  base64Images: string[]
-): Promise<Blob> {
-  const pdfDoc = await PDFDocument.create();
-
-  for (const base64 of base64Images) {
-    const cleanedBase64 = base64.replace(/^data:image\/(png|jpeg);base64,/, "");
-    const bytes = Uint8Array.from(atob(cleanedBase64), (c) => c.charCodeAt(0));
-
-    let image;
-    if (base64.startsWith("data:image/jpeg")) {
-      image = await pdfDoc.embedJpg(bytes);
-    } else if (base64.startsWith("data:image/png")) {
-      image = await pdfDoc.embedPng(bytes);
-    } else {
-      console.warn("Unsupported image format");
-      continue;
-    }
-
-    const { width, height } = image.scale(1);
-    const page = pdfDoc.addPage([width, height]);
-    page.drawImage(image, {
-      x: 0,
-      y: 0,
-      width,
-      height,
-    });
-  }
-
-  const pdfBytes = await pdfDoc.save();
-  return new Blob([pdfBytes], { type: "application/pdf" });
-}
+import { CgScan } from "react-icons/cg";
+import { DocPreview } from "./components/Preview";
+import { swap } from "./utils";
 
 export const Scanner: React.FC = () => {
   const id = useId();
@@ -47,40 +16,43 @@ export const Scanner: React.FC = () => {
       return;
     }
 
-    // ✅ Check if it's an image
     if (!file.type.startsWith("image/")) {
       alert("Selected file is not an image.");
       return;
     }
 
-    // prompt("File name", file.name);
-
-    console.log("Valid image file:", file);
-
-    // Optional: read as Data URL
     const reader = new FileReader();
     reader.onload = () => {
       const imageDataUrl = reader.result as string;
-      console.log("Image Preview:", imageDataUrl);
       setImages((prev) => [...prev, imageDataUrl]);
     };
     reader.readAsDataURL(file);
   };
 
-  const download = async () => {
-    const pdfBlob = await createPdfFromBase64Images(images);
-    const url = URL.createObjectURL(pdfBlob);
-
-    // Open in new tab or trigger download
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = "scanned-document.pdf";
-    link.click();
+  const removeByIndex = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
+
+  const [selected, setSelected] = useState<number>(-1);
+  const onSwap = (index: number) => {
+    if (selected === -1) {
+      setSelected(index);
+    } else {
+      setImages((prev) => swap([...prev], selected, index));
+      setSelected(-1);
+    }
+  };
+
   return (
     <Box w="100%">
-      <Flex w="100%">
-        <Button size={"lg"} as="label" htmlFor={id} w="full">
+      <Flex w="100%" mb={4}>
+        <Button
+          leftIcon={<CgScan />}
+          size={"lg"}
+          as="label"
+          htmlFor={id}
+          w="full"
+        >
           Scan Document
           <input
             type="file"
@@ -93,18 +65,12 @@ export const Scanner: React.FC = () => {
           />
         </Button>
       </Flex>
-      <Flex mt={3} direction={"row"} flexWrap={"wrap"} gap={3}>
-        {images.map((image) => {
-          return (
-            <Flex w="100" h="auto" bg="red" display={"inline-flex"} maxW={100}>
-              <Image w="100%" h="auto" src={image} />
-            </Flex>
-          );
-        })}
-      </Flex>
-      <Flex>
-        <Button onClick={download}>Download</Button>
-      </Flex>
+      <DocPreview
+        swap={onSwap}
+        selected={selected}
+        removeByIndex={removeByIndex}
+        images={images}
+      />
     </Box>
   );
 };
